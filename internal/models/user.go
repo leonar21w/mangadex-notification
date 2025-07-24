@@ -29,3 +29,8 @@ type Tokens struct {
 	RefreshToken string `json:"refresh_token"`
 	ExpiresAt    time.Time
 }
+
+type TokensRepo interface {
+	CacheTokens(ctx context.Context, userID string, t *Tokens)
+	GetTokenByID(ctx context.Context, userID string) (*Tokens, error)
+}

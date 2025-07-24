@@ -5,32 +5,27 @@ import (
 	"time"
 )
 
-type User struct {
-	ID       string
-	Username string
-}
-
-type UserRepo interface {
-	CreateUser(ctx context.Context, u *User) error
-	GetUserByUsername(ctx context.Context, username string) (*User, error)
-}
-
-// Given by the Client in /login Handler. This will be in the POST body
+// Returned by mangadex, store this in redis and db
 type UserAuthCredentials struct {
+	GrantTye     string
 	Username     string `json:"username"`
 	Password     string `json:"password"`
 	ClientID     string `json:"client_id"`
 	ClientSecret string `json:"client_secret"`
 }
 
-// Returned by mangadex, store this in redis and db
 type Tokens struct {
+	ClientID     string
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
 	ExpiresAt    time.Time
 }
 
+type Clients struct {
+	ClientIDs []string
+}
+
 type TokensRepo interface {
-	CacheTokens(ctx context.Context, userID string, t *Tokens)
-	GetTokenByID(ctx context.Context, userID string) (*Tokens, error)
+	CacheTokens(ctx context.Context, t *Tokens, clientID string) error
+	GetAllAvailableMangadexAccessTokens(ctx context.Context) ([]string, error)
 }

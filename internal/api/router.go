@@ -5,14 +5,13 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 )
 
-func NewChiRouter() chi.Router {
+func NewChiRouter(allHandlers *Handler) chi.Router {
 	r := chi.NewRouter()
 
 	r.Use(middleware.Logger, middleware.Recoverer)
 
-	h := NewHandler()
-	r.Route("/v2/api", func(r chi.Router) {
-		r.Post("/login", h.MDXLogin)
+	r.Route("/api", func(r chi.Router) {
+		r.Post("/login", allHandlers.Login)
 	})
 
 	return r

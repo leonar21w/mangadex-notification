@@ -23,6 +23,24 @@ func (as *AuthService) LoginWithMDX(
 	ctx context.Context,
 	creds models.UserAuthCredentials) error {
 
+	allMangadexClients, err := as.tokenRepo.GetAllCLients(ctx)
+	if err != nil {
+		return err
+	}
+
+	isRegisteredMember := func(allClients []string, client string) bool {
+		for _, item := range allClients {
+			if item == client {
+				return true
+			}
+		}
+		return false
+	}(allMangadexClients, creds.ClientID)
+
+	if isRegisteredMember {
+		return nil
+	}
+
 	formVals := url.Values{
 		"grant_type":    {"password"},
 		"username":      {creds.Username},

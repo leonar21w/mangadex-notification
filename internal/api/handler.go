@@ -9,7 +9,6 @@ import (
 	"github.com/leonar21w/mangadex-server-backend/internal/services"
 )
 
-// globals
 type Handler struct {
 	Auth *services.AuthService
 }

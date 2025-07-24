@@ -27,5 +27,6 @@ type Clients struct {
 
 type TokensRepo interface {
 	CacheTokens(ctx context.Context, t *Tokens, clientID string) error
-	GetAllAvailableMangadexAccessTokens(ctx context.Context) ([]string, error)
+	GetAllAvailableMangadexTokens(ctx context.Context, tokenKeyType string) ([]string, error)
+	GetAllCLients(ctx context.Context) ([]string, error)
 }

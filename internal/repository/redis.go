@@ -28,15 +28,49 @@ func (r *RedisDB) GetAllCLients(ctx context.Context) ([]string, error) {
 	return allMangadexClients, nil
 }
 
+func (r *RedisDB) GetRefreshTokens(ctx context.Context, clientID string) (string, error) {
+	rdb := r.rdb
+
+	buildKeyRefresh := fmt.Sprintf("refresh:%s", clientID)
+
+	refreshToken, err := rdb.Get(ctx, buildKeyRefresh).Result()
+	if err != nil {
+		return "", fmt.Errorf("error getting refresh tokens, %v", err)
+	}
+
+	return refreshToken, nil
+}
+
+// used when access token reaches ttl
+func (r *RedisDB) CacheAccessToken(ctx context.Context, accessToken string, clientID string) error {
+	rdb := r.rdb
+
+	buildKeyAccess := fmt.Sprintf("access:%s", clientID)
+
+	if err := rdb.Set(ctx, buildKeyAccess, accessToken, 10*time.Minute).Err(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (r *RedisDB) CacheTokens(ctx context.Context, t *models.Tokens, clientID string) error {
 	rdb := r.rdb
 	buildKeyAccess := fmt.Sprintf("access:%s", clientID)
 	buildKeyRefresh := fmt.Sprintf("refresh:%s", clientID)
 
-	rdb.Set(ctx, buildKeyAccess, t.AccessToken, 10*time.Minute)
-	rdb.Set(ctx, buildKeyRefresh, t.RefreshToken, 24*28*time.Hour)
-	rdb.SAdd(ctx, "clients:mangadex", clientID)
-	rdb.Expire(ctx, "clients:mangadex", 24*28*time.Hour)
+	if err := rdb.Set(ctx, buildKeyAccess, t.AccessToken, 10*time.Minute).Err(); err != nil {
+		return err
+	}
+	if err := rdb.Set(ctx, buildKeyRefresh, t.RefreshToken, 24*28*time.Hour).Err(); err != nil {
+		return err
+	}
+	if err := rdb.SAdd(ctx, "clients:mangadex", clientID).Err(); err != nil {
+		return err
+	}
+	if err := rdb.Expire(ctx, "clients:mangadex", 24*28*time.Hour).Err(); err != nil {
+		return err
+	}
 	return nil
 }
 

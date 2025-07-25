@@ -23,21 +23,8 @@ func (as *AuthService) LoginWithMDX(
 	ctx context.Context,
 	creds models.UserAuthCredentials) error {
 
-	allMangadexClients, err := as.tokenRepo.GetAllCLients(ctx)
-	if err != nil {
-		return err
-	}
-
-	isRegisteredMember := func(allClients []string, client string) bool {
-		for _, item := range allClients {
-			if item == client {
-				return true
-			}
-		}
-		return false
-	}(allMangadexClients, creds.ClientID)
-
-	if isRegisteredMember {
+	refreshToken, _ := as.tokenRepo.GetRefreshTokens(ctx, creds.ClientID)
+	if refreshToken != "" {
 		return nil
 	}
 
@@ -61,9 +48,15 @@ func (as *AuthService) LoginWithMDX(
 		return fmt.Errorf("%s", data)
 	}
 
-	var tokens models.Tokens
-	if err := json.NewDecoder(resp.Body).Decode(&tokens); err != nil {
+	var responseTokens models.MangadexLoginResponse
+	if err := json.NewDecoder(resp.Body).Decode(&responseTokens); err != nil {
 		return fmt.Errorf("failed to decode in mdxlogin: %v", err)
+	}
+
+	tokens := models.Tokens{
+		ClientID:     creds.ClientID,
+		AccessToken:  responseTokens.AccessToken,
+		RefreshToken: responseTokens.RefreshToken,
 	}
 
 	if err := as.tokenRepo.CacheTokens(ctx, &tokens, creds.ClientID); err != nil {

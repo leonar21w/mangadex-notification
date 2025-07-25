@@ -26,14 +26,24 @@ type MangadexLoginResponse struct {
 	ExpiresAt    time.Time
 }
 
-type Clients struct {
-	ClientIDs []string
+type ClientCollection struct {
+	Clients []Client
+}
+
+type Client struct {
+	ClientID     string
+	ClientSecret string
+}
+
+type RefreshTokenResponse struct {
+	AccessToken string `json:"access_token"`
 }
 
 type TokensRepo interface {
-	GetAllCLients(ctx context.Context) ([]string, error)
+	GetAllClients(ctx context.Context) (*ClientCollection, error)
 	GetRefreshTokens(ctx context.Context, clientID string) (string, error)
+	GetAccessToken(ctx context.Context, clienID string) (string, error)
 	CacheAccessToken(ctx context.Context, accessToken string, clientID string) error
-	CacheTokens(ctx context.Context, t *Tokens, clientID string) error
+	CacheTokens(ctx context.Context, t *Tokens, client *Client) error
 	GetAllAvailableMangadexTokens(ctx context.Context, tokenKeyType string) ([]string, error)
 }

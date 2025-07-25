@@ -3,6 +3,8 @@ package repository
 import (
 	"context"
 	"fmt"
+	"log"
+	"strings"
 	"time"
 
 	"github.com/leonar21w/mangadex-server-backend/internal/models"
@@ -17,15 +19,29 @@ func NewRedisDB(rdb *redis.Client) *RedisDB {
 	return &RedisDB{rdb: rdb}
 }
 
-func (r *RedisDB) GetAllCLients(ctx context.Context) ([]string, error) {
-	rdb := r.rdb
-
-	allMangadexClients, err := rdb.SMembers(ctx, "clients:mangadex").Result()
+func (r *RedisDB) GetAllClients(ctx context.Context) (*models.ClientCollection, error) {
+	rawClients, err := r.rdb.SMembers(ctx, "clients:mangadex").Result()
 	if err != nil {
 		return nil, err
 	}
 
-	return allMangadexClients, nil
+	var clients []models.Client
+	for _, raw := range rawClients {
+		parts := strings.SplitN(raw, ":", 2)
+		if len(parts) != 2 {
+			log.Printf("invalid client format in Redis: %s", raw)
+			continue
+		}
+		client := models.Client{
+			ClientID:     parts[0],
+			ClientSecret: parts[1],
+		}
+		clients = append(clients, client)
+	}
+
+	return &models.ClientCollection{
+		Clients: clients,
+	}, nil
 }
 
 func (r *RedisDB) GetRefreshTokens(ctx context.Context, clientID string) (string, error) {
@@ -54,10 +70,10 @@ func (r *RedisDB) CacheAccessToken(ctx context.Context, accessToken string, clie
 	return nil
 }
 
-func (r *RedisDB) CacheTokens(ctx context.Context, t *models.Tokens, clientID string) error {
+func (r *RedisDB) CacheTokens(ctx context.Context, t *models.Tokens, client *models.Client) error {
 	rdb := r.rdb
-	buildKeyAccess := fmt.Sprintf("access:%s", clientID)
-	buildKeyRefresh := fmt.Sprintf("refresh:%s", clientID)
+	buildKeyAccess := fmt.Sprintf("access:%s", client.ClientID)
+	buildKeyRefresh := fmt.Sprintf("refresh:%s", client.ClientID)
 
 	if err := rdb.Set(ctx, buildKeyAccess, t.AccessToken, 10*time.Minute).Err(); err != nil {
 		return err
@@ -65,7 +81,9 @@ func (r *RedisDB) CacheTokens(ctx context.Context, t *models.Tokens, clientID st
 	if err := rdb.Set(ctx, buildKeyRefresh, t.RefreshToken, 24*28*time.Hour).Err(); err != nil {
 		return err
 	}
-	if err := rdb.SAdd(ctx, "clients:mangadex", clientID).Err(); err != nil {
+	buildClient := fmt.Sprintf("%s:%s", client.ClientID, client.ClientSecret)
+
+	if err := rdb.SAdd(ctx, "clients:mangadex", buildClient).Err(); err != nil {
 		return err
 	}
 	if err := rdb.Expire(ctx, "clients:mangadex", 24*28*time.Hour).Err(); err != nil {
@@ -103,4 +121,20 @@ func (r *RedisDB) GetAllAvailableMangadexTokens(ctx context.Context, tokenKeyTyp
 		}
 	}
 	return accessTokens, nil
+}
+
+func (r *RedisDB) GetAccessToken(ctx context.Context, clientID string) (string, error) {
+	rdb := r.rdb
+
+	key := fmt.Sprintf("access:%s", clientID)
+
+	accessToken, err := rdb.Get(ctx, key).Result()
+	if err != nil {
+		if err == redis.Nil {
+			return "", nil
+		}
+		return "", err
+	}
+
+	return accessToken, nil
 }

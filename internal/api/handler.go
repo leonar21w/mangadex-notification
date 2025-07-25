@@ -47,3 +47,17 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		"message": "Login successfull",
 	})
 }
+
+func (h *Handler) RefreshMangadexAccessTokens(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	if r.Method != http.MethodGet {
+		return
+	}
+
+	if err := h.Auth.RefreshAccessTokens(r.Context()); err != nil {
+		json.NewEncoder(w).Encode("could not refresh access to mangadex")
+		return
+	}
+
+	json.NewEncoder(w).Encode("success")
+}

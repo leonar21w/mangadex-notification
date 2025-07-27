@@ -40,9 +40,10 @@ type RefreshTokenResponse struct {
 }
 
 type TokensRepo interface {
+	CacheMangaIDList(ctx context.Context, mangaID []MangadexMangaData) error
 	GetAllClients(ctx context.Context) (*ClientCollection, error)
-	GetRefreshTokens(ctx context.Context, clientID string) (string, error)
+	GetRefreshToken(ctx context.Context, clientID string) (string, error)
 	GetAccessToken(ctx context.Context, clienID string) (string, error)
 	CacheAccessToken(ctx context.Context, accessToken string, clientID string) error
-	CacheTokens(ctx context.Context, t *Tokens, client *Client) error
+	CacheClientToken(ctx context.Context, t *Tokens, client *Client) error
 }

@@ -27,7 +27,7 @@ func (as *AuthService) LoginWithMDX(
 	ctx context.Context,
 	creds models.UserAuthCredentials) error {
 
-	refreshToken, _ := as.tokenRepo.GetRefreshTokens(ctx, creds.ClientID)
+	refreshToken, _ := as.tokenRepo.GetRefreshToken(ctx, creds.ClientID)
 	if refreshToken != "" {
 		return nil
 	}
@@ -68,7 +68,7 @@ func (as *AuthService) LoginWithMDX(
 		ClientSecret: creds.ClientSecret,
 	}
 
-	if err := as.tokenRepo.CacheTokens(ctx, &tokens, &client); err != nil {
+	if err := as.tokenRepo.CacheClientToken(ctx, &tokens, &client); err != nil {
 		return err
 	}
 
@@ -90,7 +90,7 @@ func (as *AuthService) RefreshAccessTokens(ctx context.Context) error {
 		go func(val models.Client) {
 			defer wg.Done()
 
-			refreshToken, err := as.tokenRepo.GetRefreshTokens(ctx, val.ClientID)
+			refreshToken, err := as.tokenRepo.GetRefreshToken(ctx, val.ClientID)
 			if err != nil {
 				mu.Lock()
 				errors = append(errors, err)

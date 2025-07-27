@@ -22,6 +22,7 @@ func NewMangadexService(authService *AuthService) *MangadexService {
 	}
 }
 
+// Fetch this in a long interval (10 minutes - 30 minutes)
 func (ms *MangadexService) FetchMangasForAllClients(ctx context.Context) ([]models.FollowedMangaCollection, error) {
 	clients, err := ms.Auth.tokenRepo.GetAllClients(ctx)
 	if err != nil {
@@ -45,7 +46,9 @@ func (ms *MangadexService) FetchMangasForAllClients(ctx context.Context) ([]mode
 				ClientID:        client.ClientID,
 				MangaCollection: mangas,
 			}
-
+			if err := ms.Auth.tokenRepo.CacheMangaIDList(ctx, mangas); err != nil {
+				errors = append(errors, err)
+			}
 			allClientsMangaCollection = append(allClientsMangaCollection, clientMangaCollection)
 		}(client)
 	}

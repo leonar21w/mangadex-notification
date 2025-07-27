@@ -44,7 +44,7 @@ func (r *RedisDB) GetAllClients(ctx context.Context) (*models.ClientCollection, 
 	}, nil
 }
 
-func (r *RedisDB) GetRefreshTokens(ctx context.Context, clientID string) (string, error) {
+func (r *RedisDB) GetRefreshToken(ctx context.Context, clientID string) (string, error) {
 	rdb := r.rdb
 
 	buildKeyRefresh := fmt.Sprintf("refresh:%s", clientID)
@@ -70,7 +70,7 @@ func (r *RedisDB) CacheAccessToken(ctx context.Context, accessToken string, clie
 	return nil
 }
 
-func (r *RedisDB) CacheTokens(ctx context.Context, t *models.Tokens, client *models.Client) error {
+func (r *RedisDB) CacheClientToken(ctx context.Context, t *models.Tokens, client *models.Client) error {
 	rdb := r.rdb
 	buildKeyAccess := fmt.Sprintf("access:%s", client.ClientID)
 	buildKeyRefresh := fmt.Sprintf("refresh:%s", client.ClientID)
@@ -106,4 +106,13 @@ func (r *RedisDB) GetAccessToken(ctx context.Context, clientID string) (string, 
 	}
 
 	return accessToken, nil
+}
+
+func (r *RedisDB) CacheMangaIDList(ctx context.Context, mangaList []models.MangadexMangaData) error {
+	for _, manga := range mangaList {
+		if err := r.rdb.SAdd(ctx, "mangadex:mangaID", manga.ID).Err(); err != nil {
+			return err
+		}
+	}
+	return nil
 }

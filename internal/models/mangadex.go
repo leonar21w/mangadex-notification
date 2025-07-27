@@ -37,7 +37,3 @@ type TagAttributes struct {
 	Group       string            `json:"group"`
 	Version     int               `json:"version"`
 }
-
-type MangadexRepo interface {
-	FindAllMangasFollowedBy(clientID string) (FollowedMangaCollection, error)
-}

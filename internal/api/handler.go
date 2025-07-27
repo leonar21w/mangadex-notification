@@ -10,7 +10,8 @@ import (
 )
 
 type Handler struct {
-	Auth *services.AuthService
+	Auth     *services.AuthService
+	Mangadex *services.MangadexService
 }
 
 func NewHandler(h *Handler) *Handler {
@@ -60,4 +61,17 @@ func (h *Handler) RefreshMangadexAccessTokens(w http.ResponseWriter, r *http.Req
 	}
 
 	json.NewEncoder(w).Encode("success")
+}
+
+func (h *Handler) tryingendpoint(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	someCollection, err := h.Mangadex.FetchMangasForAllClients(r.Context())
+
+	if err != nil {
+		json.NewEncoder(w).Encode(fmt.Sprintf("error found: %v", err))
+		return
+	}
+
+	json.NewEncoder(w).Encode(someCollection)
 }

@@ -28,10 +28,12 @@ func main() {
 
 	//services
 	authService := services.NewAuthService(tokenRepo)
+	mangadexService := services.NewMangadexService(authService)
 
 	//handlers
 	allHandlers := &api.Handler{
-		Auth: authService,
+		Auth:     authService,
+		Mangadex: mangadexService,
 	}
 
 	handler := api.NewHandler(allHandlers)

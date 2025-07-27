@@ -2,7 +2,10 @@ package services
 
 import (
 	"context"
+	"fmt"
+	"log"
 	"net/http"
+	"sync"
 
 	"github.com/leonar21w/mangadex-server-backend/internal/constants"
 	"github.com/leonar21w/mangadex-server-backend/internal/models"
@@ -10,21 +13,65 @@ import (
 )
 
 type MangadexService struct {
-	TokensRepo   models.TokensRepo
-	MangadexRepo models.MangadexRepo
+	Auth *AuthService
 }
 
-func NewMangadexService(tokensRepo models.TokensRepo, mangadexRepo models.MangadexRepo) *MangadexService {
+func NewMangadexService(authService *AuthService) *MangadexService {
 	return &MangadexService{
-		TokensRepo:   tokensRepo,
-		MangadexRepo: mangadexRepo,
+		Auth: authService,
 	}
 }
 
-func (ms *MangadexService) FindAllMangasFollowedBy(ctx context.Context, clientID string) (*models.FollowedMangaCollection, error) {
-	accessToken, err := ms.TokensRepo.GetAccessToken(ctx, clientID)
+func (ms *MangadexService) FetchMangasForAllClients(ctx context.Context) ([]models.FollowedMangaCollection, error) {
+	clients, err := ms.Auth.tokenRepo.GetAllClients(ctx)
 	if err != nil {
 		return nil, err
+	}
+
+	allClientsMangaCollection := make([]models.FollowedMangaCollection, len(clients.Clients))
+	var wg sync.WaitGroup
+	var errors []error
+
+	for _, client := range clients.Clients {
+		wg.Add(1)
+		go func(client models.Client) {
+			defer wg.Done()
+			mangas, err := ms.FindAllMangasFollowedBy(ctx, client.ClientID)
+			if err != nil {
+				errors = append(errors, err)
+			}
+
+			clientMangaCollection := models.FollowedMangaCollection{
+				ClientID:        client.ClientID,
+				MangaCollection: mangas,
+			}
+
+			allClientsMangaCollection = append(allClientsMangaCollection, clientMangaCollection)
+		}(client)
+	}
+	wg.Wait()
+	if len(errors) != 0 {
+		for _, foundError := range errors {
+			log.Println(foundError)
+		}
+		return nil, fmt.Errorf("found %v errors in FetchMangasForAllClients()", len(errors))
+	}
+
+	return allClientsMangaCollection, nil
+}
+
+func (ms *MangadexService) FindAllMangasFollowedBy(ctx context.Context, clientID string) ([]models.MangadexMangaData, error) {
+	accessToken, err := ms.Auth.tokenRepo.GetAccessToken(ctx, clientID)
+	if err != nil {
+		return nil, err
+	}
+
+	if accessToken == "" {
+		ms.Auth.RefreshAccessTokens(ctx)
+		accessToken, err = ms.Auth.tokenRepo.GetAccessToken(ctx, clientID)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	endpoint := constants.MangaDexAPIBaseURL + "/user/follows/manga"
@@ -32,9 +79,9 @@ func (ms *MangadexService) FindAllMangasFollowedBy(ctx context.Context, clientID
 		"Authorization": "Bearer " + accessToken,
 	}
 
-	request, err := util.MakeHTTPRequest(ctx, endpoint, http.MethodGet, headers, nil, nil, models.FollowedMangaCollection{})
+	request, err := util.MakeHTTPRequest(ctx, endpoint, http.MethodGet, headers, nil, nil, models.ClientFollowedMangaCollectionResponse{})
 	if err != nil {
 		return nil, err
 	}
-	return &request, nil
+	return request.Data, nil
 }

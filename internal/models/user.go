@@ -45,5 +45,4 @@ type TokensRepo interface {
 	GetAccessToken(ctx context.Context, clienID string) (string, error)
 	CacheAccessToken(ctx context.Context, accessToken string, clientID string) error
 	CacheTokens(ctx context.Context, t *Tokens, client *Client) error
-	GetAllAvailableMangadexTokens(ctx context.Context, tokenKeyType string) ([]string, error)
 }

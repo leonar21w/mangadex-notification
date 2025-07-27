@@ -92,37 +92,6 @@ func (r *RedisDB) CacheTokens(ctx context.Context, t *models.Tokens, client *mod
 	return nil
 }
 
-func (r *RedisDB) GetAllAvailableMangadexTokens(ctx context.Context, tokenKeyType string) ([]string, error) {
-	rdb := r.rdb
-	ids, err := rdb.SMembers(ctx, "clients:mangadex").Result()
-	if err != nil {
-		return nil, err
-	}
-
-	keys := make([]string, len(ids))
-	for i, id := range ids {
-		keys[i] = tokenKeyType + id
-	}
-
-	v, err := rdb.MGet(ctx, keys...).Result()
-	if err != nil {
-		return nil, err
-	}
-
-	accessTokens := make([]string, 0, len(v))
-	for _, token := range v {
-		if token == redis.Nil {
-			//if data here is ever nil then the database holds bad integrity, just throw an error
-			//we detect the error and we can just check for refresh. If THAT errors then its a real error.
-			return nil, nil
-		}
-		if result, ok := token.(string); ok {
-			accessTokens = append(accessTokens, result)
-		}
-	}
-	return accessTokens, nil
-}
-
 func (r *RedisDB) GetAccessToken(ctx context.Context, clientID string) (string, error) {
 	rdb := r.rdb
 

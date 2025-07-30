@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
@@ -115,4 +116,47 @@ func (r *RedisDB) CacheMangaIDList(ctx context.Context, mangaList []models.Manga
 		}
 	}
 	return nil
+}
+
+func (r *RedisDB) GetMangaIDList(ctx context.Context) ([]string, error) {
+	mangaIDs, err := r.rdb.SMembers(ctx, "mangadex:mangaID").Result()
+	if err != nil {
+		return nil, err
+	}
+	return mangaIDs, nil
+}
+
+// should move to another interface
+func (r *RedisDB) InsertMangaWithID(ctx context.Context, mangaID string, manga *models.Manga) error {
+	key := fmt.Sprintf("mangadex:manga:%s", mangaID)
+
+	if err := r.InsertAllChapters(ctx, mangaID, manga); err != nil {
+		return err
+	}
+	return r.rdb.HSet(ctx, key, map[string]any{
+		"title": manga.CanonicalTitle,
+		"cover": manga.CoverURL,
+	}).Err()
+}
+
+func (r *RedisDB) UpdateMangaField(ctx context.Context, mangaID string, field string, value any) error {
+	key := fmt.Sprintf("mangadex:manga:%s", mangaID)
+	return r.rdb.HSet(ctx, key, field, value).Err()
+}
+
+func (r *RedisDB) InsertAllChapters(ctx context.Context, mangaID string, manga *models.Manga) error {
+	key := fmt.Sprintf("mangadex:manga:%s:chapters", mangaID)
+
+	pipe := r.rdb.Pipeline()
+
+	for i, chapter := range manga.Chapters {
+		raw, err := json.Marshal(chapter)
+		if err != nil {
+			log.Print(i)
+			return err
+		}
+		pipe.HSet(ctx, key, chapter.ID, raw)
+	}
+	_, err := pipe.Exec(ctx)
+	return err
 }

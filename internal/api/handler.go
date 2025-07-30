@@ -63,15 +63,11 @@ func (h *Handler) RefreshMangadexAccessTokens(w http.ResponseWriter, r *http.Req
 	json.NewEncoder(w).Encode("success")
 }
 
-func (h *Handler) tryingendpoint(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) tryChapterList(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-
-	someCollection, err := h.Mangadex.FetchMangasForAllClients(r.Context())
-
-	if err != nil {
-		json.NewEncoder(w).Encode(fmt.Sprintf("error found: %v", err))
+	if err := h.Mangadex.InitializeMangas(r.Context()); err != nil {
+		json.NewEncoder(w).Encode(fmt.Sprintf("failed: %v", err))
 		return
 	}
-
-	json.NewEncoder(w).Encode(someCollection)
+	json.NewEncoder(w).Encode("success")
 }

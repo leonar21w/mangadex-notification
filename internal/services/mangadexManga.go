@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
+	"strconv"
 	"sync"
 
 	"github.com/leonar21w/mangadex-server-backend/internal/constants"
@@ -22,14 +24,46 @@ func NewMangadexService(authService *AuthService) *MangadexService {
 	}
 }
 
+// Needs manga clients to be in redis
+func (ms *MangadexService) InitializeMangas(ctx context.Context) error {
+	mangaList, err := ms.FetchMangasForAllClients(ctx)
+	if err != nil {
+		return err
+	}
+
+	var wg sync.WaitGroup
+	var errors []error
+
+	for _, val := range mangaList {
+		wg.Add(1)
+		go func(val models.MangadexMangaData) {
+			defer wg.Done()
+			manga, err := ms.FetchMangasChapters(ctx, &val)
+			if err != nil {
+				errors = append(errors, err)
+			}
+
+			if err := ms.Auth.tokenRepo.InsertMangaWithID(ctx, val.ID, manga); err != nil {
+				errors = append(errors, err)
+			}
+		}(val)
+	}
+	wg.Wait()
+
+	if len(errors) > 0 {
+		return errors[len(errors)-1]
+	}
+	return nil
+}
+
 // Fetch this in a long interval (10 minutes - 30 minutes)
-func (ms *MangadexService) FetchMangasForAllClients(ctx context.Context) ([]models.FollowedMangaCollection, error) {
+func (ms *MangadexService) FetchMangasForAllClients(ctx context.Context) ([]models.MangadexMangaData, error) {
 	clients, err := ms.Auth.tokenRepo.GetAllClients(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	allClientsMangaCollection := make([]models.FollowedMangaCollection, len(clients.Clients))
+	var mangaList []models.MangadexMangaData
 	var wg sync.WaitGroup
 	var errors []error
 
@@ -42,14 +76,10 @@ func (ms *MangadexService) FetchMangasForAllClients(ctx context.Context) ([]mode
 				errors = append(errors, err)
 			}
 
-			clientMangaCollection := models.FollowedMangaCollection{
-				ClientID:        client.ClientID,
-				MangaCollection: mangas,
-			}
 			if err := ms.Auth.tokenRepo.CacheMangaIDList(ctx, mangas); err != nil {
 				errors = append(errors, err)
 			}
-			allClientsMangaCollection = append(allClientsMangaCollection, clientMangaCollection)
+			mangaList = append(mangaList, mangas...)
 		}(client)
 	}
 	wg.Wait()
@@ -60,7 +90,7 @@ func (ms *MangadexService) FetchMangasForAllClients(ctx context.Context) ([]mode
 		return nil, fmt.Errorf("found %v errors in FetchMangasForAllClients()", len(errors))
 	}
 
-	return allClientsMangaCollection, nil
+	return mangaList, nil
 }
 
 func (ms *MangadexService) FindAllMangasFollowedBy(ctx context.Context, clientID string) ([]models.MangadexMangaData, error) {
@@ -76,15 +106,40 @@ func (ms *MangadexService) FindAllMangasFollowedBy(ctx context.Context, clientID
 			return nil, err
 		}
 	}
-
+	var all []models.MangadexMangaData
 	endpoint := constants.MangaDexAPIBaseURL + "/user/follows/manga"
 	headers := map[string]string{
 		"Authorization": "Bearer " + accessToken,
 	}
+	total := 1
+	offset := 0
 
-	request, err := util.MakeHTTPRequest(ctx, endpoint, http.MethodGet, headers, nil, nil, models.ClientFollowedMangaCollectionResponse{})
-	if err != nil {
-		return nil, err
+	for offset < total {
+		params := url.Values{
+			"limit":  {strconv.Itoa(constants.DefaultPageLimit)},
+			"offset": {strconv.Itoa(offset)},
+		}
+
+		// fire the request
+		req, err := util.MakeHTTPRequest(
+			ctx,
+			endpoint,
+			http.MethodGet,
+			headers,
+			params,
+			nil,
+			models.ClientFollowedMangaCollectionResponse{},
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		// append this page
+		all = append(all, req.Data...)
+
+		total = req.Total
+		offset += constants.DefaultPageLimit
 	}
-	return request.Data, nil
+
+	return all, nil
 }

@@ -14,7 +14,7 @@ func NewChiRouter(allHandlers *Handler) chi.Router {
 	r.Route("/api", func(r chi.Router) {
 		r.Post("/login", allHandlers.Login)
 		r.Get("/refresh", allHandlers.RefreshMangadexAccessTokens)
-		r.Get("/test", allHandlers.tryingendpoint)
+		r.Get("/try", allHandlers.tryChapterList)
 	})
 
 	return r

@@ -42,9 +42,9 @@ func main() {
 	server := &http.Server{
 		Addr:         ":5173",
 		Handler:      router,
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 5 * time.Second,
-		IdleTimeout:  5 * time.Minute,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  3 * time.Minute,
 	}
 	if err := server.ListenAndServe(); err != nil {
 		log.Fatalf("server error: %v", err)

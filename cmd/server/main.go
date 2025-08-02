@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"net/http"
 	"os"
 	"time"
 
@@ -98,6 +99,26 @@ func main() {
 			}
 			log.Printf("fetched 2 mnt interval")
 			<-ticker.C
+		}
+	}()
+
+	//Satisfying render server
+
+	// Start the HTTP listener on Render's port
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("ok"))
+	})
+
+	go func() {
+		log.Printf("🌐 Listening for health checks on :%s", port)
+		if err := http.ListenAndServe(":"+port, mux); err != nil {
+			log.Fatalf("HTTP server error: %v", err)
 		}
 	}()
 

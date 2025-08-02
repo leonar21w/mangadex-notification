@@ -109,13 +109,16 @@ func (r *RedisDB) GetAccessToken(ctx context.Context, clientID string) (string, 
 	return accessToken, nil
 }
 
-func (r *RedisDB) CacheMangaIDList(ctx context.Context, mangaList []models.MangadexMangaData) error {
+func (r *RedisDB) CacheMangaIDList(ctx context.Context, mangaList []models.MangadexMangaData) (int, error) {
+	added := 0
 	for _, manga := range mangaList {
-		if err := r.rdb.SAdd(ctx, "mangadex:mangaID", manga.ID).Err(); err != nil {
-			return err
+		res, err := r.rdb.SAdd(ctx, "mangadex:mangaID", manga.ID).Result()
+		if err != nil {
+			return 0, err
 		}
+		added += int(res)
 	}
-	return nil
+	return added, nil
 }
 
 func (r *RedisDB) GetMangaIDList(ctx context.Context) ([]string, error) {
@@ -130,33 +133,84 @@ func (r *RedisDB) GetMangaIDList(ctx context.Context) ([]string, error) {
 func (r *RedisDB) InsertMangaWithID(ctx context.Context, mangaID string, manga *models.Manga) error {
 	key := fmt.Sprintf("mangadex:manga:%s", mangaID)
 
-	if err := r.InsertAllChapters(ctx, mangaID, manga); err != nil {
-		return err
-	}
 	return r.rdb.HSet(ctx, key, map[string]any{
 		"title": manga.CanonicalTitle,
-		"cover": manga.CoverURL,
 	}).Err()
 }
 
-func (r *RedisDB) UpdateMangaField(ctx context.Context, mangaID string, field string, value any) error {
+func (r *RedisDB) GetMangaTitle(ctx context.Context, mangaID string) (string, error) {
 	key := fmt.Sprintf("mangadex:manga:%s", mangaID)
-	return r.rdb.HSet(ctx, key, field, value).Err()
+	title, err := r.rdb.HGet(ctx, key, "title").Result()
+	if err != nil {
+		if err == redis.Nil {
+			return "", nil
+		}
+		return "", err
+	}
+	return title, nil
 }
-
 func (r *RedisDB) InsertAllChapters(ctx context.Context, mangaID string, manga *models.Manga) error {
 	key := fmt.Sprintf("mangadex:manga:%s:chapters", mangaID)
 
 	pipe := r.rdb.Pipeline()
 
-	for i, chapter := range manga.Chapters {
+	for _, chapter := range manga.Chapters {
 		raw, err := json.Marshal(chapter)
 		if err != nil {
-			log.Print(i)
 			return err
 		}
 		pipe.HSet(ctx, key, chapter.ID, raw)
 	}
 	_, err := pipe.Exec(ctx)
 	return err
+}
+
+func (r *RedisDB) UpdateLastGetFeedTime(ctx context.Context) error {
+	key := "mangadex:manga:feed:time"
+	markTimeOfRequest := time.Now().UTC().Format("2006-01-02T15:04:05")
+
+	return r.rdb.Set(ctx, key, markTimeOfRequest, 0).Err()
+}
+
+func (r *RedisDB) GetLastFeedTime(ctx context.Context) (string, error) {
+	key := "mangadex:manga:feed:time"
+
+	return r.rdb.Get(ctx, key).Result()
+}
+
+func (r *RedisDB) UpdateMangaChapters(ctx context.Context, mangaID string, chapters []models.FeedChapter) ([]models.FeedChapter, error) {
+	key := fmt.Sprintf("mangadex:manga:chapters:%s", mangaID)
+
+	pipe := r.rdb.Pipeline()
+	cmds := make([]*redis.IntCmd, len(chapters))
+
+	for i, chapter := range chapters {
+		raw, err := json.Marshal(models.MangadexChapterData{
+			ID:         chapter.ID,
+			Attributes: chapter.Attributes,
+		})
+		if err != nil {
+			return nil, err
+		}
+		cmds[i] = pipe.HSet(ctx, key, chapter.ID, raw)
+	}
+
+	if _, err := pipe.Exec(ctx); err != nil {
+		return nil, err
+	}
+
+	var updatedChapters []models.FeedChapter
+
+	for i, cmd := range cmds {
+		status, err := cmd.Result()
+		if err != nil {
+			return nil, err
+		}
+
+		if status == 1 {
+			updatedChapters = append(updatedChapters, chapters[i])
+		}
+	}
+	return updatedChapters, nil
+
 }

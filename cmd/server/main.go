@@ -1,12 +1,13 @@
 package main
 
 import (
+	"context"
 	"log"
-	"net/http"
+	"os"
 	"time"
 
-	"github.com/leonar21w/mangadex-server-backend/internal/api"
 	"github.com/leonar21w/mangadex-server-backend/internal/db"
+	"github.com/leonar21w/mangadex-server-backend/internal/models"
 	"github.com/leonar21w/mangadex-server-backend/internal/repository"
 	"github.com/leonar21w/mangadex-server-backend/internal/services"
 	"github.com/leonar21w/mangadex-server-backend/pkg"
@@ -30,23 +31,75 @@ func main() {
 	authService := services.NewAuthService(tokenRepo)
 	mangadexService := services.NewMangadexService(authService)
 
-	//handlers
-	allHandlers := &api.Handler{
-		Auth:     authService,
-		Mangadex: mangadexService,
+	ctx := context.Background()
+	client := models.UserAuthCredentials{
+		GrantTye:     "password",
+		Username:     os.Getenv("MGDEX_USERNAME"),
+		Password:     os.Getenv("MGDEX_PASSWORD"),
+		ClientID:     os.Getenv("MGDEX_CLIENT"),
+		ClientSecret: os.Getenv("MGDEX_SECRET"),
 	}
 
-	handler := api.NewHandler(allHandlers)
+	if err := authService.LoginWithMDX(ctx, client); err != nil {
+		panic(err)
+	}
 
-	router := api.NewChiRouter(handler)
-	server := &http.Server{
-		Addr:         ":5173",
-		Handler:      router,
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 10 * time.Second,
-		IdleTimeout:  3 * time.Minute,
+	if err := mangadexService.InitializeMangas(ctx); err != nil {
+		panic(err)
 	}
-	if err := server.ListenAndServe(); err != nil {
-		log.Fatalf("server error: %v", err)
-	}
+
+	go func() {
+		ticker := time.NewTicker(28 * 24 * time.Hour)
+		defer ticker.Stop()
+
+		for {
+			<-ticker.C
+			if err := authService.LoginWithMDX(ctx, client); err != nil {
+				log.Printf("relogin to mangadex error: %v", err)
+			}
+			log.Printf("logged in with %v", client.Username)
+		}
+	}()
+
+	go func() {
+		ticker := time.NewTicker(20 * time.Minute)
+		defer ticker.Stop()
+
+		for {
+			<-ticker.C
+			if err := authService.RefreshAccessTokens(ctx); err != nil {
+				log.Printf("refresh tokens error: %v", err)
+			}
+			log.Printf("refreshed tokens")
+		}
+	}()
+
+	go func() {
+		ticker := time.NewTicker(3 * time.Hour)
+		defer ticker.Stop()
+
+		for {
+			<-ticker.C
+			//if no added mangas it nils out
+			_, _, err := mangadexService.FetchMangasForAllClients(ctx)
+			if err != nil {
+				log.Print(err)
+			}
+		}
+	}()
+
+	go func() {
+		ticker := time.NewTicker(5 * time.Minute)
+		defer ticker.Stop()
+
+		for {
+			if err := mangadexService.AllClientsChapterFeed(ctx); err != nil {
+				log.Printf("fetch notifications error: %v", err)
+			}
+			log.Printf("fetched 2 mnt interval")
+			<-ticker.C
+		}
+	}()
+
+	select {}
 }

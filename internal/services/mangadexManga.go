@@ -26,9 +26,13 @@ func NewMangadexService(authService *AuthService) *MangadexService {
 
 // Needs manga clients to be in redis
 func (ms *MangadexService) InitializeMangas(ctx context.Context) error {
-	mangaList, err := ms.FetchMangasForAllClients(ctx)
+	added, mangaList, err := ms.FetchMangasForAllClients(ctx)
 	if err != nil {
 		return err
+	}
+	if added == 0 {
+		log.Print("no added mangas to cache")
+		return nil
 	}
 
 	var wg sync.WaitGroup
@@ -43,9 +47,18 @@ func (ms *MangadexService) InitializeMangas(ctx context.Context) error {
 				errors = append(errors, err)
 			}
 
-			if err := ms.Auth.tokenRepo.InsertMangaWithID(ctx, val.ID, manga); err != nil {
-				errors = append(errors, err)
-			}
+			var wait sync.WaitGroup
+			wait.Add(1)
+
+			go func(valID string, manga *models.Manga) {
+				defer wait.Done()
+				ms.Auth.tokenRepo.InsertMangaWithID(ctx, val.ID, manga)
+
+			}(val.ID, manga)
+
+			ms.Auth.tokenRepo.InsertAllChapters(ctx, val.ID, manga)
+
+			wait.Wait()
 		}(val)
 	}
 	wg.Wait()
@@ -57,15 +70,16 @@ func (ms *MangadexService) InitializeMangas(ctx context.Context) error {
 }
 
 // Fetch this in a long interval (10 minutes - 30 minutes)
-func (ms *MangadexService) FetchMangasForAllClients(ctx context.Context) ([]models.MangadexMangaData, error) {
+func (ms *MangadexService) FetchMangasForAllClients(ctx context.Context) (int, []models.MangadexMangaData, error) {
 	clients, err := ms.Auth.tokenRepo.GetAllClients(ctx)
 	if err != nil {
-		return nil, err
+		return 0, nil, err
 	}
 
 	var mangaList []models.MangadexMangaData
 	var wg sync.WaitGroup
 	var errors []error
+	added := 0
 
 	for _, client := range clients.Clients {
 		wg.Add(1)
@@ -76,9 +90,11 @@ func (ms *MangadexService) FetchMangasForAllClients(ctx context.Context) ([]mode
 				errors = append(errors, err)
 			}
 
-			if err := ms.Auth.tokenRepo.CacheMangaIDList(ctx, mangas); err != nil {
+			result, err := ms.Auth.tokenRepo.CacheMangaIDList(ctx, mangas)
+			if err != nil {
 				errors = append(errors, err)
 			}
+			added += result
 			mangaList = append(mangaList, mangas...)
 		}(client)
 	}
@@ -87,10 +103,11 @@ func (ms *MangadexService) FetchMangasForAllClients(ctx context.Context) ([]mode
 		for _, foundError := range errors {
 			log.Println(foundError)
 		}
-		return nil, fmt.Errorf("found %v errors in FetchMangasForAllClients()", len(errors))
+		return 0, nil, fmt.Errorf("found %v errors in FetchMangasForAllClients()", len(errors))
 	}
 
-	return mangaList, nil
+	return added, mangaList, nil
+
 }
 
 func (ms *MangadexService) FindAllMangasFollowedBy(ctx context.Context, clientID string) ([]models.MangadexMangaData, error) {

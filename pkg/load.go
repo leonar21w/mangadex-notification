@@ -13,8 +13,10 @@ type Config struct {
 }
 
 func Load() (*Config, error) {
-	if err := godotenv.Load(); err != nil {
-		return nil, fmt.Errorf("loading .env: %w", err)
+	if os.Getenv("GO_ENV") == "development" {
+		if err := godotenv.Load(); err != nil {
+			return nil, fmt.Errorf("loading .env: %w", err)
+		}
 	}
 
 	cfg := &Config{

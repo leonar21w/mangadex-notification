@@ -26,13 +26,22 @@ func (ms *MangadexService) AllClientsChapterFeed(ctx context.Context) error {
 	mangaUpdates := make(map[string][]models.FeedChapter)
 	var clientWg sync.WaitGroup
 	var errors []error
+	oldTime, err := ms.Auth.tokenRepo.GetLastFeedTime(ctx)
+	if err != nil {
+		return err
+	}
+
+	parsedOldTime, err := time.ParseInLocation(constants.MDTimeLayout, oldTime, time.UTC)
+	if err != nil {
+		return err
+	}
 
 	for _, client := range clients.Clients {
 		clientWg.Add(1)
 		go func(clientID string) {
 			defer clientWg.Done()
 
-			feed, err := ms.MangadexChapterFeed(ctx, clientID)
+			feed, err := ms.MangadexChapterFeed(ctx, clientID, parsedOldTime)
 			if err != nil {
 				errors = append(errors, err)
 			}
@@ -40,22 +49,15 @@ func (ms *MangadexService) AllClientsChapterFeed(ctx context.Context) error {
 				if chapterUpdates.Attributes.TranslatedLanguage != "en" && chapterUpdates.Attributes.TranslatedLanguage != "id" {
 					continue
 				}
-				lastTime, err := ms.Auth.tokenRepo.GetLastFeedTime(ctx)
-				if err != nil {
-					errors = append(errors, err)
-				}
-				parsedLastTime, err := time.ParseInLocation("2006-01-02T15:04:05", lastTime, time.UTC)
-				if err != nil {
-					errors = append(errors, err)
-				}
 
-				parsedChapterCreatedTime, err := time.Parse(time.RFC3339, chapterUpdates.Attributes.CreatedAt)
+				parsedChapterCreatedTime, err := time.ParseInLocation(time.RFC3339, chapterUpdates.Attributes.CreatedAt, time.UTC)
 				if err != nil {
 					errors = append(errors, err)
 				}
 
 				for _, rel := range chapterUpdates.Relationships {
-					if rel.Type == "manga" && parsedChapterCreatedTime.After(parsedLastTime) {
+					log.Printf("Chapter: %s, found in chapterUpdates, Created Time: %s", chapterUpdates.Attributes.Title, parsedChapterCreatedTime)
+					if rel.Type == "manga" && parsedChapterCreatedTime.After(parsedOldTime) {
 						mangaUpdates[rel.ID] = append(mangaUpdates[rel.ID], chapterUpdates)
 					}
 				}
@@ -100,10 +102,14 @@ func (ms *MangadexService) AllClientsChapterFeed(ctx context.Context) error {
 		return errors[len(errors)-1]
 	}
 
+	if err := ms.Auth.tokenRepo.UpdateLastGetFeedTime(ctx); err != nil {
+		return err
+	}
+
 	return nil
 }
 
-func (ms *MangadexService) MangadexChapterFeed(ctx context.Context, clientID string) ([]models.FeedChapter, error) {
+func (ms *MangadexService) MangadexChapterFeed(ctx context.Context, clientID string, t time.Time) ([]models.FeedChapter, error) {
 	accessToken, err := ms.Auth.tokenRepo.GetAccessToken(ctx, clientID)
 	if err != nil {
 		return nil, err
@@ -122,13 +128,6 @@ func (ms *MangadexService) MangadexChapterFeed(ctx context.Context, clientID str
 		"Authorization": "Bearer " + accessToken,
 	}
 
-	oldTimeMark, _ := ms.Auth.tokenRepo.GetLastFeedTime(ctx)
-
-	if oldTimeMark == "" {
-		// fallback to 1 minute ago
-		oldTimeMark = time.Now().UTC().Add(-time.Minute).Format("2006-01-02T15:04:05")
-
-	}
 	limit := 100
 	offset := 0
 
@@ -136,7 +135,7 @@ func (ms *MangadexService) MangadexChapterFeed(ctx context.Context, clientID str
 		queryParameters := url.Values{
 			"limit":          {strconv.Itoa(limit)},
 			"offset":         {strconv.Itoa(offset)},
-			"publishAtSince": {oldTimeMark},
+			"publishAtSince": {t.Format(constants.MDTimeLayout)},
 		}
 		return util.MakeHTTPRequest(ctx, endpoint, string(http.MethodGet), header, queryParameters, nil, models.FeedResponse{})
 	}
@@ -158,10 +157,6 @@ func (ms *MangadexService) MangadexChapterFeed(ctx context.Context, clientID str
 			return nil, err
 		}
 		allChapters = append(allChapters, nextPage.Data...)
-	}
-
-	if err := ms.Auth.tokenRepo.UpdateLastGetFeedTime(ctx); err != nil {
-		log.Println(err)
 	}
 
 	return allChapters, nil

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/leonar21w/mangadex-server-backend/internal/constants"
 	"github.com/leonar21w/mangadex-server-backend/internal/models"
 	"github.com/redis/go-redis/v9"
 )
@@ -167,7 +168,7 @@ func (r *RedisDB) InsertAllChapters(ctx context.Context, mangaID string, manga *
 
 func (r *RedisDB) UpdateLastGetFeedTime(ctx context.Context) error {
 	key := "mangadex:manga:feed:time"
-	markTimeOfRequest := time.Now().UTC().Format("2006-01-02T15:04:05")
+	markTimeOfRequest := time.Now().UTC().Format(constants.MDTimeLayout)
 
 	return r.rdb.Set(ctx, key, markTimeOfRequest, 0).Err()
 }

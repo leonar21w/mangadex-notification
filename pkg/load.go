@@ -14,9 +14,7 @@ type Config struct {
 
 func Load() (*Config, error) {
 
-	if err := godotenv.Load(); err != nil {
-		return nil, fmt.Errorf("loading .env: %w", err)
-	}
+	_ = godotenv.Load()
 
 	cfg := &Config{
 		RedisURL:   os.Getenv("REDIS_URL"),

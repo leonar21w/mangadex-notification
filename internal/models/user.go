@@ -42,15 +42,9 @@ type RefreshTokenResponse struct {
 type TokensRepo interface {
 	UpdateLastGetFeedTime(ctx context.Context) error
 	GetLastFeedTime(ctx context.Context) (string, error)
-	CacheMangaIDList(ctx context.Context, mangaID []MangadexMangaData) (int, error)
-	GetMangaIDList(ctx context.Context) ([]string, error)
-	InsertMangaWithID(ctx context.Context, mangaID string, manga *Manga) error
 	GetAllClients(ctx context.Context) (*ClientCollection, error)
 	GetRefreshToken(ctx context.Context, clientID string) (string, error)
 	GetAccessToken(ctx context.Context, clienID string) (string, error)
 	CacheAccessToken(ctx context.Context, accessToken string, clientID string) error
 	CacheClientToken(ctx context.Context, t *Tokens, client *Client) error
-	UpdateMangaChapters(ctx context.Context, mangaID string, chapters []FeedChapter) ([]FeedChapter, error)
-	InsertAllChapters(ctx context.Context, mangaID string, manga *Manga) error
-	GetMangaTitle(ctx context.Context, mangaID string) (string, error)
 }

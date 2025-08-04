@@ -26,10 +26,11 @@ func main() {
 
 	//repositories
 	tokenRepo := repository.NewRedisDB(rdb)
+	mangaRepo := repository.NewRedisDB(rdb)
 
 	//services
 	authService := services.NewAuthService(tokenRepo)
-	mangadexService := services.NewMangadexService(authService)
+	mangadexService := services.NewMangadexService(authService, mangaRepo)
 
 	ctx := context.Background()
 	client := models.UserAuthCredentials{
@@ -98,7 +99,7 @@ func main() {
 			if err := mangadexService.AllClientsChapterFeed(ctx); err != nil {
 				log.Printf("fetch notifications error: %v", err)
 			}
-			log.Printf("fetched 2 mnt interval")
+			log.Printf("fetched 5 mnt interval")
 			<-ticker.C
 		}
 	}()

@@ -56,7 +56,6 @@ func (ms *MangadexService) AllClientsChapterFeed(ctx context.Context) error {
 				}
 
 				for _, rel := range chapterUpdates.Relationships {
-					log.Printf("Chapter: %s, found in chapterUpdates, Created Time: %s", chapterUpdates.Attributes.Title, parsedChapterCreatedTime)
 					if rel.Type == "manga" && parsedChapterCreatedTime.After(parsedOldTime) {
 						mangaUpdates[rel.ID] = append(mangaUpdates[rel.ID], chapterUpdates)
 					}
@@ -72,7 +71,7 @@ func (ms *MangadexService) AllClientsChapterFeed(ctx context.Context) error {
 		mangaWg.Add(1)
 		go func(mangaID string, chapterUpdate []models.FeedChapter) {
 			defer mangaWg.Done()
-			savedChapters, err := ms.Auth.tokenRepo.UpdateMangaChapters(ctx, mangaID, chapterUpdate)
+			savedChapters, err := ms.MangaRepo.UpdateMangaChapters(ctx, mangaID, chapterUpdate)
 			if err != nil {
 				errors = append(errors, err)
 			}
@@ -83,7 +82,7 @@ func (ms *MangadexService) AllClientsChapterFeed(ctx context.Context) error {
 
 			log.Println(len(savedChapters), mangaID)
 
-			title, _ := ms.Auth.tokenRepo.GetMangaTitle(ctx, mangaID)
+			title, _ := ms.MangaRepo.GetMangaTitle(ctx, mangaID)
 			if title == "" {
 				title = "no title found"
 			}

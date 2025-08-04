@@ -44,7 +44,7 @@ func MakeHTTPRequest[T any](ctx context.Context, fullUrl string, httpMethod stri
 	}
 
 	// optional: log the request for easier stack tracing
-	log.Printf("%s %s\n", httpMethod, req.URL.String())
+	//log.Printf("%s %s\n", httpMethod, req.URL.String())
 
 	// finally, do the request
 	res, err := client.Do(req)

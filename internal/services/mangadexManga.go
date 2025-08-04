@@ -15,12 +15,14 @@ import (
 )
 
 type MangadexService struct {
-	Auth *AuthService
+	Auth      *AuthService
+	MangaRepo models.MangaRepo
 }
 
-func NewMangadexService(authService *AuthService) *MangadexService {
+func NewMangadexService(authService *AuthService, mangaRepo models.MangaRepo) *MangadexService {
 	return &MangadexService{
-		Auth: authService,
+		Auth:      authService,
+		MangaRepo: mangaRepo,
 	}
 }
 
@@ -52,11 +54,11 @@ func (ms *MangadexService) InitializeMangas(ctx context.Context) error {
 
 			go func(valID string, manga *models.Manga) {
 				defer wait.Done()
-				ms.Auth.tokenRepo.InsertMangaWithID(ctx, val.ID, manga)
+				ms.MangaRepo.InsertMangaWithID(ctx, val.ID, manga)
 
 			}(val.ID, manga)
 
-			ms.Auth.tokenRepo.InsertAllChapters(ctx, val.ID, manga)
+			ms.MangaRepo.InsertAllChapters(ctx, val.ID, manga)
 
 			wait.Wait()
 		}(val)
@@ -90,7 +92,7 @@ func (ms *MangadexService) FetchMangasForAllClients(ctx context.Context) (int, [
 				errors = append(errors, err)
 			}
 
-			result, err := ms.Auth.tokenRepo.CacheMangaIDList(ctx, mangas)
+			result, err := ms.MangaRepo.CacheMangaIDList(ctx, mangas)
 			if err != nil {
 				errors = append(errors, err)
 			}

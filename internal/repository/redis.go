@@ -168,7 +168,7 @@ func (r *RedisDB) InsertAllChapters(ctx context.Context, mangaID string, manga *
 
 func (r *RedisDB) UpdateLastGetFeedTime(ctx context.Context) error {
 	key := "mangadex:manga:feed:time"
-	markTimeOfRequest := time.Now().UTC().Format(constants.MDTimeLayout)
+	markTimeOfRequest := time.Now().UTC().Format(constants.MD.TimeLayout())
 
 	return r.rdb.Set(ctx, key, markTimeOfRequest, 0).Err()
 }

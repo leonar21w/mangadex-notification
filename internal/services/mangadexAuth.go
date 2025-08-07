@@ -40,7 +40,7 @@ func (as *AuthService) LoginWithMDX(
 		"client_secret": {creds.ClientSecret},
 	}
 
-	endpoint := constants.MangadexAuthBaseURL + authEndpoint
+	endpoint := constants.MD.AuthEndpoint()
 	resp, err := http.PostForm(endpoint, formVals)
 	if err != nil {
 		return fmt.Errorf("error calling %s, %w", endpoint, err)
@@ -105,7 +105,8 @@ func (as *AuthService) RefreshAccessTokens(ctx context.Context) error {
 				"client_secret": {val.ClientSecret},
 			}
 
-			endpoint := constants.MangadexAuthBaseURL + authEndpoint
+			endpoint := constants.MD.AuthEndpoint()
+
 			resp, err := http.PostForm(endpoint, formVals)
 			if err != nil {
 				mu.Lock()

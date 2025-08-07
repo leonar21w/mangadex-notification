@@ -31,7 +31,7 @@ func (ms *MangadexService) AllClientsChapterFeed(ctx context.Context) error {
 		return err
 	}
 
-	parsedOldTime, err := time.ParseInLocation(constants.MDTimeLayout, oldTime, time.UTC)
+	parsedOldTime, err := time.ParseInLocation(constants.MD.TimeLayout(), oldTime, time.UTC)
 	if err != nil {
 		return err
 	}
@@ -122,7 +122,7 @@ func (ms *MangadexService) MangadexChapterFeed(ctx context.Context, clientID str
 		accessToken, _ = ms.Auth.tokenRepo.GetAccessToken(ctx, clientID)
 	}
 
-	endpoint := constants.MangaDexAPIBaseURL + "/user/follows/manga/feed"
+	endpoint := constants.MD.FeedMangaEndpoint()
 	header := map[string]string{
 		"Authorization": "Bearer " + accessToken,
 	}
@@ -134,7 +134,7 @@ func (ms *MangadexService) MangadexChapterFeed(ctx context.Context, clientID str
 		queryParameters := url.Values{
 			"limit":          {strconv.Itoa(limit)},
 			"offset":         {strconv.Itoa(offset)},
-			"publishAtSince": {t.Format(constants.MDTimeLayout)},
+			"publishAtSince": {t.Format(constants.MD.TimeLayout())},
 		}
 		return util.MakeHTTPRequest(ctx, endpoint, string(http.MethodGet), header, queryParameters, nil, models.FeedResponse{})
 	}

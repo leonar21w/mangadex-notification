@@ -8,8 +8,12 @@ import (
 )
 
 type Config struct {
-	RedisURL   string
-	RedisToken string
+	RedisURL     string
+	RedisToken   string
+	Username     string
+	Password     string
+	ClientID     string
+	ClientSecret string
 }
 
 func Load() (*Config, error) {
@@ -17,8 +21,20 @@ func Load() (*Config, error) {
 	_ = godotenv.Load()
 
 	cfg := &Config{
-		RedisURL:   os.Getenv("REDIS_URL"),
-		RedisToken: os.Getenv("REDIS_TOKEN"),
+		RedisURL:     "",
+		RedisToken:   "",
+		Username:     os.Getenv("MGDEX_USERNAME"),
+		Password:     os.Getenv("MGDEX_PASSWORD"),
+		ClientID:     os.Getenv("MGDEX_CLIENT"),
+		ClientSecret: os.Getenv("MGDEX_SECRET"),
+	}
+
+	if os.Getenv("CURRENT_ENV") != "dev" {
+		cfg.RedisURL = os.Getenv("REDIS_URL")
+		cfg.RedisToken = os.Getenv("REDIS_TOKEN")
+	} else {
+		cfg.RedisURL = os.Getenv("REDIS_URL_TEST")
+		cfg.RedisToken = os.Getenv("REDIS_TOKEN_TEST")
 	}
 
 	// validate required fields

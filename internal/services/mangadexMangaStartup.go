@@ -38,7 +38,7 @@ func (ms *MangadexService) FetchMangasChapters(ctx context.Context, mangaData *m
 }
 
 func (ms *MangadexService) FetchAllChapterList(ctx context.Context, mangaID string) (*models.MangadexChapterList, error) {
-	endpoint := constants.MangaDexAPIBaseURL + "/chapter"
+	endpoint := constants.MD.ChapterMangaEndpoint()
 
 	header := map[string]string{
 		"Content-Type": "application/json",

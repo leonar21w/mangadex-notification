@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"log"
-	"os"
 	"time"
 
+	"github.com/leonar21w/mangadex-server-backend/internal/constants"
 	"github.com/leonar21w/mangadex-server-backend/internal/db"
 	"github.com/leonar21w/mangadex-server-backend/internal/models"
 	"github.com/leonar21w/mangadex-server-backend/internal/repository"
@@ -19,7 +19,7 @@ func main() {
 		log.Fatalf("%v", err)
 	}
 
-	rdb, err := db.RedisInit(cfg.RedisURL, cfg.RedisToken, 5)
+	rdb, err := db.RedisInit(cfg.RedisURL, cfg.RedisToken)
 	if err != nil {
 		log.Fatalf("redis failed to initialize : %v", err)
 	}
@@ -34,11 +34,11 @@ func main() {
 
 	ctx := context.Background()
 	client := models.UserAuthCredentials{
-		GrantTye:     "password",
-		Username:     os.Getenv("MGDEX_USERNAME"),
-		Password:     os.Getenv("MGDEX_PASSWORD"),
-		ClientID:     os.Getenv("MGDEX_CLIENT"),
-		ClientSecret: os.Getenv("MGDEX_SECRET"),
+		GrantTye:     constants.MD.UserAuthGrantType(),
+		Username:     cfg.Username,
+		Password:     cfg.Password,
+		ClientID:     cfg.ClientID,
+		ClientSecret: cfg.ClientSecret,
 	}
 
 	tokenRepo.UpdateLastGetFeedTime(ctx)
@@ -52,7 +52,7 @@ func main() {
 	}
 
 	go func() {
-		ticker := time.NewTicker(28 * 24 * time.Hour)
+		ticker := time.NewTicker(constants.LoginInterval)
 		defer ticker.Stop()
 
 		for {
@@ -65,7 +65,7 @@ func main() {
 	}()
 
 	go func() {
-		ticker := time.NewTicker(20 * time.Minute)
+		ticker := time.NewTicker(constants.AccessTokenRefreshInterval)
 		defer ticker.Stop()
 
 		for {
@@ -73,12 +73,11 @@ func main() {
 			if err := authService.RefreshAccessTokens(ctx); err != nil {
 				log.Printf("refresh tokens error: %v", err)
 			}
-			log.Printf("refreshed tokens")
 		}
 	}()
 
 	go func() {
-		ticker := time.NewTicker(3 * time.Hour)
+		ticker := time.NewTicker(constants.FollowedMangaListenerInterval)
 		defer ticker.Stop()
 
 		for {
@@ -92,14 +91,13 @@ func main() {
 	}()
 
 	go func() {
-		ticker := time.NewTicker(5 * time.Minute)
+		ticker := time.NewTicker(constants.FeedListenerInterval)
 		defer ticker.Stop()
 
 		for {
 			if err := mangadexService.AllClientsChapterFeed(ctx); err != nil {
 				log.Printf("fetch notifications error: %v", err)
 			}
-			log.Printf("fetched 5 mnt interval")
 			<-ticker.C
 		}
 	}()

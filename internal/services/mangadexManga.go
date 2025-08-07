@@ -126,7 +126,7 @@ func (ms *MangadexService) FindAllMangasFollowedBy(ctx context.Context, clientID
 		}
 	}
 	var all []models.MangadexMangaData
-	endpoint := constants.MangaDexAPIBaseURL + "/user/follows/manga"
+	endpoint := constants.MD.FollowedMangaEndpoint()
 	headers := map[string]string{
 		"Authorization": "Bearer " + accessToken,
 	}
@@ -135,7 +135,7 @@ func (ms *MangadexService) FindAllMangasFollowedBy(ctx context.Context, clientID
 
 	for offset < total {
 		params := url.Values{
-			"limit":  {strconv.Itoa(constants.DefaultPageLimit)},
+			"limit":  {strconv.Itoa(constants.MD.DefaultPageLimit())},
 			"offset": {strconv.Itoa(offset)},
 		}
 
@@ -157,7 +157,7 @@ func (ms *MangadexService) FindAllMangasFollowedBy(ctx context.Context, clientID
 		all = append(all, req.Data...)
 
 		total = req.Total
-		offset += constants.DefaultPageLimit
+		offset += constants.MD.DefaultPageLimit()
 	}
 
 	return all, nil

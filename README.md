@@ -36,25 +36,25 @@ go mod tidy
 
 ## Configuration (.env fields)
 
+```env
 # Current environment: "test" or "production"
-CURRENT_ENV,
+CURRENT_ENV=
 
 # Redis (Test Environment)
-REDIS_URL_TEST,
-REDIS_TOKEN_TEST,
+REDIS_URL_TEST=
+REDIS_TOKEN_TEST=
 
-# Redis (Deployed)
-REDIS_TOKEN,
-REDIS_URL,
+# Redis (Production)
+REDIS_TOKEN=
+REDIS_URL=
 
 # Emails
-EMAIL_APP_PASSWORD,
-SENDER_EMAIL,
-RECIPIENT_EMAIL,
+EMAIL_APP_PASSWORD=
+SENDER_EMAIL=
+RECIPIENT_EMAIL=
 
 # MangaDex API credentials
-MGDEX_USERNAME,
-MGDEX_CLIENT,
-MGDEX_PASSWORD,
-MGDEX_SECRET,
----
+MGDEX_USERNAME=
+MGDEX_CLIENT=
+MGDEX_PASSWORD=
+MGDEX_SECRET=

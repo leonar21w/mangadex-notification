@@ -26,10 +26,8 @@ Built with **Go**, uses **Redis** for caching, and supports multiple environment
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/<leonar21w>/<mangadex-notifications>.git
-
+git clone https://github.com/leonar21w/mangadex-notifications.git
 cd mangadex-notifications
-
 go mod tidy
 ```
  ---

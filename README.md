@@ -7,11 +7,8 @@ Built with **Go**, uses **Redis** for caching, and supports multiple environment
 
 ## Features
 - Track manga updates for your MangaDex account
-- Cache API results in Redis to minimize requests
 - Send email alerts for new chapter releases
 - Multiple environment support (Test / Production)
-- Secure credential management via `.env` file
-
 ---
 
 ## Requirements

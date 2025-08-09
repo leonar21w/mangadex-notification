@@ -29,7 +29,7 @@ func Load() (*Config, error) {
 		ClientSecret: os.Getenv("MGDEX_SECRET"),
 	}
 
-	if os.Getenv("CURRENT_ENV") != "dev" {
+	if os.Getenv("CURRENT_ENV") != "test" {
 		cfg.RedisURL = os.Getenv("REDIS_URL")
 		cfg.RedisToken = os.Getenv("REDIS_TOKEN")
 	} else {

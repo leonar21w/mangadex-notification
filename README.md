@@ -26,5 +26,36 @@ Built with **Go**, uses **Redis** for caching, and supports multiple environment
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/<your-username>/<your-repo>.git
-cd <your-repo>
+git clone https://github.com/<leonar21w>/<mangadex-notifications>.git
+
+cd mangadex-notifications
+
+go mod tidy
+```
+ ---
+
+## Configuration
+
+# Current environment: "test" or "production"
+CURRENT_ENV=
+
+# Redis (Test Environment)
+REDIS_URL_TEST=
+REDIS_TOKEN_TEST=
+
+# Redis (Production)
+REDIS_TOKEN=
+REDIS_URL=
+
+# Emails
+EMAIL_APP_PASSWORD=
+SENDER_EMAIL=
+RECIPIENT_EMAIL=
+
+# MangaDex API credentials
+MGDEX_USERNAME=
+MGDEX_CLIENT=
+MGDEX_PASSWORD=
+MGDEX_SECRET=
+
+---
